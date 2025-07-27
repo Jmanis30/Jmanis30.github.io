@@ -1,7 +1,8 @@
---- 
-title: index
-permalink: /index/   
 ---
+layout: default
+title: Home
+---
+
 # James Maniscalco
 
 > **Data Scientist & Analytics Engineer**  
