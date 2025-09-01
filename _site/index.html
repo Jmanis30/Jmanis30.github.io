@@ -1,9 +1,30 @@
----
-layout: default
-title: Home
----
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
 
-<head>
+    <meta property="og:title" content="Personal Projects and Information">
+    <meta property="og:description" content="Check out my work and experience around AI">
+    <meta property="og:image" content="https://jamesmanis.site/assets/main.jpg">
+    <meta property="og:url" content="https://jamesmanis.site/">
+  </head>
+  <body>
+    <nav class="site-nav">
+      <div class="nav-inner container">
+        <div class="nav-left">
+          <a href="/">Home</a>
+          <a href="/about/">About</a>
+        </div>
+        <div class="nav-right">
+          <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">🌙</button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container"><head>
   <meta property="og:title" content="Personal Projects and Information">
   <meta property="og:description" content="Check out my work and experience around AI">
   <meta property="og:image" content="https://jamesmanis.site/assets/main.png">
@@ -65,7 +86,7 @@ title: Home
   </ul>
 </section>
 
-<script src="{{ '/assets/js/ribbon.js' | relative_url }}" defer></script>
+<script src="/assets/js/ribbon.js" defer></script>
 
 <section class="section">
   <h2>Education</h2>
@@ -145,3 +166,7 @@ title: Home
     <li>2020 Outdoor Track &amp; Field Big East Champion</li>
   </ul>
 </section>
+</main>
+    <script src="/assets/js/theme.js" defer></script>
+  </body>
+  </html>
