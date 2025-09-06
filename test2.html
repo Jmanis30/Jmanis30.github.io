@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+</head>
+<body>
+  <h2>Train MNIST in TensorFlow.js (CNN)</h2>
+  <button onclick="run()">Train Model</button>
+  <pre id="output"></pre>
+
+  <script>
+    class MnistData {
+      constructor() {
+        this.IMAGE_SIZE = 784;
+        this.NUM_CLASSES = 10;
+        this.NUM_DATASET_ELEMENTS = 65000;
+        this.NUM_TRAIN_ELEMENTS = 55000;
+        this.NUM_TEST_ELEMENTS = this.NUM_DATASET_ELEMENTS - this.NUM_TRAIN_ELEMENTS;
+        this.MNIST_IMAGES_SPRITE_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
+        this.MNIST_LABELS_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
+      }
+
+      async load() {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const imgRequest = new Promise((resolve) => {
+          img.crossOrigin = '';
+          img.onload = () => {
+            img.width = img.naturalWidth;
+            img.height = img.naturalHeight;
+            const datasetBytesBuffer =
+              new ArrayBuffer(this.NUM_DATASET_ELEMENTS * this.IMAGE_SIZE * 4);
+
+            const chunkSize = 5000;
+            canvas.width = img.width;
+            canvas.height = chunkSize;
+
+            for (let i = 0; i < this.NUM_DATASET_ELEMENTS / chunkSize; i++) {
+              const datasetBytesView = new Float32Array(
+                datasetBytesBuffer, i * this.IMAGE_SIZE * chunkSize * 4,
+                this.IMAGE_SIZE * chunkSize);
+              ctx.drawImage(img, 0, i * chunkSize, img.width, chunkSize,
+                            0, 0, img.width, chunkSize);
+
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+              for (let j = 0; j < imageData.data.length / 4; j++) {
+                datasetBytesView[j] = imageData.data[j * 4] / 255;
+              }
+            }
+            this.datasetImages = new Float32Array(datasetBytesBuffer);
+            resolve();
+          };
+          img.src = this.MNIST_IMAGES_SPRITE_PATH;
+        });
+
+        const labelsRequest = fetch(this.MNIST_LABELS_PATH);
+        await Promise.all([imgRequest, labelsRequest]).then(async ([, labelsResponse]) => {
+          this.datasetLabels = new Uint8Array(await labelsResponse.arrayBuffer());
+        });
+
+        this.trainImages = this.datasetImages.slice(0, this.IMAGE_SIZE * this.NUM_TRAIN_ELEMENTS);
+        this.testImages = this.datasetImages.slice(this.IMAGE_SIZE * this.NUM_TRAIN_ELEMENTS);
+        this.trainLabels = this.datasetLabels.slice(0, this.NUM_CLASSES * this.NUM_TRAIN_ELEMENTS);
+        this.testLabels = this.datasetLabels.slice(this.NUM_CLASSES * this.NUM_TRAIN_ELEMENTS);
+      }
+
+      nextTrainBatch(batchSize) {
+        return this.nextBatch(batchSize, [this.trainImages, this.trainLabels]);
+      }
+
+      nextTestBatch(batchSize) {
+        return this.nextBatch(batchSize, [this.testImages, this.testLabels]);
+      }
+
+      nextBatch(batchSize, data) {
+        const batchImagesArray = new Float32Array(batchSize * this.IMAGE_SIZE);
+        const batchLabelsArray = new Uint8Array(batchSize * this.NUM_CLASSES);
+
+        for (let i = 0; i < batchSize; i++) {
+          const idx = Math.floor(Math.random() * (data[0].length / this.IMAGE_SIZE));
+          const image = data[0].slice(idx * this.IMAGE_SIZE, idx * this.IMAGE_SIZE + this.IMAGE_SIZE);
+          const label = data[1].slice(idx * this.NUM_CLASSES, idx * this.NUM_CLASSES + this.NUM_CLASSES);
+          batchImagesArray.set(image, i * this.IMAGE_SIZE);
+          batchLabelsArray.set(label, i * this.NUM_CLASSES);
+        }
+
+        // Reshape to [batch, 28, 28, 1] for CNN
+        const xs = tf.tensor4d(batchImagesArray, [batchSize, 28, 28, 1]);
+        const labels = tf.tensor2d(batchLabelsArray, [batchSize, this.NUM_CLASSES]);
+        return {xs, labels};
+      }
+    }
+
+    async function getData() {
+      const mnist = new MnistData();
+      await mnist.load();
+      return mnist;
+    }
+
+    function createModel() {
+      const model = tf.sequential();
+      model.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1],
+        filters: 16,
+        kernelSize: 3,
+        activation: 'relu'
+      }));
+      model.add(tf.layers.maxPooling2d({poolSize: [2, 2]}));
+      model.add(tf.layers.conv2d({
+        filters: 32,
+        kernelSize: 3,
+        activation: 'relu'
+      }));
+      model.add(tf.layers.maxPooling2d({poolSize: [2, 2]}));
+      model.add(tf.layers.flatten());
+      model.add(tf.layers.dense({units: 64, activation: 'relu'}));
+      model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+      model.compile({
+        optimizer: 'adam',
+        loss: 'categoricalCrossentropy',
+        metrics: ['accuracy']
+      });
+      return model;
+    }
+
+    async function run() {
+      const data = await getData();
+      const model = createModel();
+      const BATCH_SIZE = 512;
+      const TRAIN_BATCHES = 300; // fewer iterations for CNN
+
+      for (let i = 0; i < TRAIN_BATCHES; i++) {
+        const batch = data.nextTrainBatch(BATCH_SIZE);
+        const testBatch = data.nextTestBatch(BATCH_SIZE);
+        const history = await model.fit(
+          batch.xs, batch.labels,
+          {batchSize: BATCH_SIZE, validationData: [testBatch.xs, testBatch.labels], epochs: 1});
+        document.getElementById('output').innerText +=
+          `Step ${i+1}: loss=${history.history.loss[0].toFixed(4)}, acc=${history.history.acc[0].toFixed(4)}\n`;
+        batch.xs.dispose();
+        batch.labels.dispose();
+        testBatch.xs.dispose();
+        testBatch.labels.dispose();
+      }
+      await model.save('downloads://mnist-cnn-model');
+    }
+  </script>
+</body>
+</html>

@@ -12,16 +12,23 @@ title: MNIST Grid
       <div id="mnist-grid" class="mnist-grid" role="img" aria-label="28 by 28 drawing grid"></div>
     </div>
     <aside class="mnist-panel">
+      <div class="mnist-panel-row small">
+        <div class="mnist-panel-label">Model</div>
+        <select id="mnist-model">
+          <option value="cnn" selected>CNN (28×28×1)</option>
+          <option value="mlp">MLP (flattened 784)</option>
+        </select>
+        <div class="mnist-segment" role="tablist" aria-label="Model selector">
+          <button id="btn-cnn" role="tab" aria-selected="true" class="active">CNN</button>
+          <button id="btn-mlp" role="tab" aria-selected="false">MLP</button>
+        </div>
+      </div>
       <div class="mnist-panel-row">
         <div class="mnist-panel-label">Prediction</div>
         <div id="mnist-result" class="mnist-digit">–</div>
       </div>
-      <div class="mnist-panel-row small">
-        <div class="mnist-panel-label">Confidence</div>
-        <div id="mnist-conf" class="mnist-conf">–</div>
-      </div>
       <div class="mnist-panel-status" id="mnist-status"></div>
-      <div class="mnist-viz">
+      <div class="mnist-viz" id="viz-mlp">
         <div class="viz-layer">
           <div class="viz-title">Hidden 1</div>
           <div class="viz-nodes" id="viz-h1"></div>
@@ -33,6 +40,21 @@ title: MNIST Grid
         <div class="viz-layer">
           <div class="viz-title">Output</div>
           <div class="viz-nodes" id="viz-out"></div>
+        </div>
+      </div>
+
+      <div class="mnist-viz" id="viz-cnn" style="display:none;">
+        <div class="viz-layer">
+          <div class="viz-title">Conv2D 1 Kernels</div>
+          <div class="viz-kernels" id="viz-c1"></div>
+        </div>
+        <div class="viz-layer">
+          <div class="viz-title">Conv2D 2 Kernels</div>
+          <div class="viz-kernels" id="viz-c2"></div>
+        </div>
+        <div class="viz-layer">
+          <div class="viz-title">Output</div>
+          <div class="viz-nodes" id="viz-out-cnn"></div>
         </div>
       </div>
     </aside>
@@ -78,6 +100,18 @@ title: MNIST Grid
   .viz-node { width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid var(--border); box-shadow: var(--shadow); transition: background-color 80ms linear, outline-color 80ms linear; }
   .viz-node.active { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+  /* Model segmented control */
+  #mnist-model { display: none; }
+  .mnist-segment { display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2, rgba(255,255,255,0.04)); box-shadow: var(--shadow-inset, inset 0 1px 0 rgba(255,255,255,0.05)); overflow: hidden; }
+  .mnist-segment > button { appearance: none; border: none; background: transparent; color: var(--text); padding: 6px 12px; font: inherit; cursor: pointer; }
+  .mnist-segment > button:hover { background: rgba(255,255,255,0.06); }
+  .mnist-segment > button.active { background: var(--accent); color: var(--on-accent, #111); }
+
+  /* CNN kernel thumbnails */
+  .viz-kernels { display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); gap: 6px; align-items: start; }
+  .kernel-thumb { width: 100%; aspect-ratio: 1 / 1; border: 1px solid var(--border); border-radius: 6px; background: #111; overflow: hidden; box-shadow: var(--shadow); }
+  .kernel-thumb canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+
   @media (max-width: 520px) {
     .mnist-grid { --cell-size: 10px; }
     .mnist-flex { flex-direction: column; }
@@ -88,33 +122,44 @@ title: MNIST Grid
 <script>
   let model;
   let activationModel;
-  async function loadModel() {
+  let convActModel;
+  let currentModelType = 'cnn'; // 'cnn' or 'mlp'
+  async function loadModel(kind = 'cnn') {
     try {
       const statusEl = document.getElementById('mnist-status');
       statusEl.textContent = 'Loading model…';
-      model = await tf.loadLayersModel("model_web/model.json");
-      statusEl.textContent = 'Model ready';
-      console.log("Model loaded!");
-      // Construct activation model for hidden layers and logits
+      const path = kind === 'cnn' ? 'assets/model_web_cnn/model.json' : 'assets/model_web/model.json';
+      model = await tf.loadLayersModel(path);
+      currentModelType = kind;
+      statusEl.textContent = `Model ready (${kind.toUpperCase()})`;
+      console.log("Model loaded!", kind);
+      // Construct activation model tapping the last two Dense layers (if present) and the output
       try {
         const layers = model.layers || [];
-        let denseLayers = layers.filter(l => typeof l.getClassName === 'function' && l.getClassName() === 'Dense');
-        let h1 = denseLayers[0];
-        let h2 = denseLayers[1];
-        // Fallback by units if needed
-        if (!h1 || !h2) {
-          h1 = null; h2 = null;
-          for (const l of layers) {
-            if (l.units === 16 && !h1) { h1 = l; continue; }
-            if (l.units === 16 && !h2) { h2 = l; continue; }
-          }
-        }
+        const denseLayers = layers.filter(l => typeof l.getClassName === 'function' && l.getClassName() === 'Dense');
+        const outDense = denseLayers[denseLayers.length - 1];
+        const hiddenCandidates = denseLayers.slice(0, Math.max(0, denseLayers.length - 1));
+        const h2 = hiddenCandidates[hiddenCandidates.length - 1] || null;
+        const h1 = hiddenCandidates[hiddenCandidates.length - 2] || null;
         const out = model.outputs[0];
         if (h1 && h2 && out) {
           activationModel = tf.model({ inputs: model.inputs, outputs: [h1.output, h2.output, out] });
+        } else if (h2 && out) {
+          activationModel = tf.model({ inputs: model.inputs, outputs: [h2.output, out] });
         } else {
           activationModel = null;
-          console.warn('Could not find expected Dense layers for activations.');
+          console.warn('Could not find two Dense hidden layers for activations.');
+        }
+        // Build conv activation model for CNN visualization
+        const convLayers = layers.filter(l => typeof l.getClassName === 'function' && l.getClassName() === 'Conv2D');
+        if (kind === 'cnn' && convLayers.length >= 1) {
+          const outputs = [];
+          outputs.push(convLayers[0].output);
+          if (convLayers[1]) outputs.push(convLayers[1].output);
+          outputs.push(model.outputs[0]);
+          convActModel = tf.model({ inputs: model.inputs, outputs });
+        } else {
+          convActModel = null;
         }
       } catch (e) {
         console.warn('Activation model unavailable:', e);
@@ -134,7 +179,6 @@ title: MNIST Grid
     const gridEl = document.getElementById('mnist-grid');
     const clearBtn = document.getElementById('mnist-clear');
     const resultEl = document.getElementById('mnist-result');
-    const confEl = document.getElementById('mnist-conf');
     const cells = gridEl.children;
 
     // Pixel intensity buffer (0..1)
@@ -181,31 +225,36 @@ title: MNIST Grid
       }
     }
 
-    // Paint at pointer location: center 0.95, within 0.25 of edge -> neighbor 0.2
+    // Paint with radial falloff: for any block center within 1 block of the cursor,
+    // intensity = 1 - distance_to_center (clamped to [0,1])
     function paintAt(clientX, clientY) {
       const rect = gridEl.getBoundingClientRect();
       const x = clientX - rect.left - padL;
       const y = clientY - rect.top - padT;
-      const j = Math.floor(x / pitch);
-      const i = Math.floor(y / pitch);
-      if (i < 0 || j < 0 || i >= size || j >= size) return;
 
-      const baseIdx = i * size + j;
-      setPix(baseIdx, 1);
+      // Pointer in block units
+      const fx = x / pitch;
+      const fy = y / pitch;
+      const j0 = Math.floor(fx);
+      const i0 = Math.floor(fy);
+      if (i0 < -1 || j0 < -1 || i0 > size || j0 > size) return;
 
-      const xInPitch = x - j * pitch;
-      const yInPitch = y - i * pitch;
-      const rx = Math.max(0, Math.min(1, xInPitch / Math.max(1, cellSize)));
-      const ry = Math.max(0, Math.min(1, yInPitch / Math.max(1, cellSize)));
-      const th = 0.25;
-      if (rx < th && j - 1 >= 0) setPix(i * size + (j - 1), 0.2);
-      if (rx > 1 - th && j + 1 < size) setPix(i * size + (j + 1), 0.2);
-      if (ry < th && i - 1 >= 0) setPix((i - 1) * size + j, 0.2);
-      if (ry > 1 - th && i + 1 < size) setPix((i + 1) * size + j, 0.2);
-      if (rx < th && ry < th && i - 1 >= 0 && j - 1 >= 0) setPix((i - 1) * size + (j - 1), 0.2);
-      if (rx < th && ry > 1 - th && i + 1 < size && j - 1 >= 0) setPix((i + 1) * size + (j - 1), 0.2);
-      if (rx > 1 - th && ry < th && i - 1 >= 0 && j + 1 < size) setPix((i - 1) * size + (j + 1), 0.2);
-      if (rx > 1 - th && ry > 1 - th && i + 1 < size && j + 1 < size) setPix((i + 1) * size + (j + 1), 0.2);
+      // Check 3x3 neighborhood around the pointer cell
+      for (let di = -1; di <= 1; di++) {
+        const i = i0 + di;
+        if (i < 0 || i >= size) continue;
+        for (let dj = -1; dj <= 1; dj++) {
+          const j = j0 + dj;
+          if (j < 0 || j >= size) continue;
+          const cx = j + 0.5; // center in block units
+          const cy = i + 0.5;
+          const dist = Math.hypot(fx - cx, fy - cy);
+          if (dist <= 1) {
+            const intensity = Math.max(0, 1 - dist);
+            setPix(i * size + j, intensity);
+          }
+        }
+      }
     }
 
     gridEl.addEventListener('pointerdown', (e) => {
@@ -239,12 +288,15 @@ title: MNIST Grid
         cells[i].style.backgroundColor = '';
       }
       resultEl.textContent = '–';
-      confEl.textContent = '–';
       schedulePredict();
     });
 
     function gridToTensor() {
-      // Provide batch dimension [1, 784]
+      if (currentModelType === 'cnn') {
+        // CNN expects [batch, 28, 28, 1]
+        return tf.tensor4d(pix, [1, size, size, 1]);
+      }
+      // MLP expects [batch, 784]
       return tf.tensor2d([pix], [1, size * size]);
     }
 
@@ -261,49 +313,85 @@ title: MNIST Grid
       await tf.ready();
 
       const x = gridToTensor();
-      const out = tf.tidy(() => {
-        let h1Vals = null, h2Vals = null, probsVals = null, pred = null, topProb = null;
-        if (activationModel) {
-          const [h1T, h2T, logitsT] = activationModel.predict(x);
-          const probsT = tf.softmax(logitsT);
-          pred = probsT.argMax(1).dataSync()[0];
-          topProb = probsT.max(1).dataSync()[0];
-          h1Vals = Array.from(h1T.dataSync());
-          h2Vals = Array.from(h2T.dataSync());
-          probsVals = Array.from(probsT.dataSync());
-        } else {
-          const logits = model.predict(x);
-          const probs = tf.softmax(logits);
-          pred = probs.argMax(1).dataSync()[0];
-          topProb = probs.max(1).dataSync()[0];
-          probsVals = Array.from(probs.dataSync());
-        }
-        return { pred, topProb, h1Vals, h2Vals, probsVals };
-      });
-      x.dispose();
+      let pred = null;
+      let probsVals = null;
+      let h1Vals = null, h2Vals = null;
 
-      resultEl.textContent = String(out.pred);
-      confEl.textContent = `${(out.topProb * 100).toFixed(1)}%`;
+      if (currentModelType === 'cnn' && convActModel) {
+        // Predict conv activations and logits
+        const act = convActModel.predict(x);
+        let c1 = null, c2 = null, logitsT = null;
+        if (Array.isArray(act)) {
+          if (act.length === 3) { [c1, c2, logitsT] = act; }
+          else if (act.length === 2) { [c1, logitsT] = act; }
+          else { logitsT = act[act.length - 1]; }
+        } else {
+          logitsT = act;
+        }
+        const probsT = tf.softmax(logitsT);
+        pred = (await probsT.argMax(1).data())[0];
+        probsVals = Array.from(await probsT.data());
+        // Render feature maps live
+        if (c1) await renderFeatureMaps(c1, 'viz-c1', 4);
+        if (c2) await renderFeatureMaps(c2, 'viz-c2', 4);
+        // Cleanup
+        probsT.dispose();
+        if (Array.isArray(act)) act.forEach(t => t?.dispose?.());
+        else logitsT.dispose?.();
+      } else {
+        // MLP path: use dense activations if available
+        const out = tf.tidy(() => {
+          let _h1 = null, _h2 = null, _logits = null;
+          if (activationModel) {
+            const a = activationModel.predict(x);
+            if (Array.isArray(a)) {
+              if (a.length === 3) { [_h1, _h2, _logits] = a; }
+              else if (a.length === 2) { [_h2, _logits] = a; }
+              else { _logits = a[a.length - 1]; }
+            } else {
+              _logits = a;
+            }
+          } else {
+            _logits = model.predict(x);
+          }
+          const _probs = tf.softmax(_logits);
+          const _pred = _probs.argMax(1).dataSync()[0];
+          const _probsVals = Array.from(_probs.dataSync());
+          const _h1Vals = _h1 ? Array.from(_h1.dataSync()) : null;
+          const _h2Vals = _h2 ? Array.from(_h2.dataSync()) : null;
+          return { _pred, _probsVals, _h1Vals, _h2Vals };
+        });
+        pred = out._pred;
+        probsVals = out._probsVals;
+        h1Vals = out._h1Vals;
+        h2Vals = out._h2Vals;
+      }
+
+      x.dispose();
+      resultEl.textContent = String(pred);
 
       // Update NN visualization
       if (!vizBuilt) buildViz();
-      if (out.h1Vals) updateLayer(vizH1Nodes, out.h1Vals);
-      if (out.h2Vals) updateLayer(vizH2Nodes, out.h2Vals);
-      if (out.probsVals) updateLayer(vizOutNodes, out.probsVals, true, out.pred);
+      if (currentModelType !== 'cnn') {
+        if (h1Vals) updateLayer(vizH1Nodes, h1Vals);
+        if (h2Vals) updateLayer(vizH2Nodes, h2Vals);
+      }
+      if (probsVals) updateLayer(vizOutNodes, probsVals, true, pred);
     }
 
     // Viz helpers
     let vizBuilt = false;
-    let vizH1Nodes = [], vizH2Nodes = [], vizOutNodes = [];
+    let vizH1Nodes = [], vizH2Nodes = [], vizOutNodes = [], vizOutNodesMlp = [];
     function buildViz() {
       if (vizBuilt) return;
       const h1El = document.getElementById('viz-h1');
       const h2El = document.getElementById('viz-h2');
       const outEl = document.getElementById('viz-out');
-      vizH1Nodes = createNodes(h1El, 16);
-      vizH2Nodes = createNodes(h2El, 16);
+      vizH1Nodes = createNodes(h1El, 32);
+      vizH2Nodes = createNodes(h2El, 32);
       vizOutNodes = createNodes(outEl, 10);
       vizBuilt = true;
+      vizOutNodesMlp = vizOutNodes;
     }
 
     function createNodes(container, count) {
@@ -329,7 +417,121 @@ title: MNIST Grid
       }
     }
 
-    // Kick off model load
-    loadModel().then(() => { buildViz(); schedulePredict(); });
+    // CNN feature map visualization helpers (live updates)
+    let cnnVizBuilt = false;
+    let vizOutNodesCnn = [];
+    const featureCanvasCache = {};
+    function ensureCanvases(containerId, width, height, count) {
+      const container = document.getElementById(containerId);
+      if (!container) return [];
+      let list = featureCanvasCache[containerId] || [];
+      const needsRebuild = (
+        !Array.isArray(list) ||
+        list.length !== count ||
+        container.children.length !== count ||
+        (list[0] && (list[0].width !== width || list[0].height !== height))
+      );
+      if (needsRebuild) {
+        container.innerHTML = '';
+        list = [];
+        for (let i = 0; i < count; i++) {
+          const wrap = document.createElement('div');
+          wrap.className = 'kernel-thumb';
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          wrap.appendChild(canvas);
+          container.appendChild(wrap);
+          list.push(canvas);
+        }
+        featureCanvasCache[containerId] = list;
+      }
+      return list;
+    }
+    async function renderFeatureMaps(tensor4d, containerId, maxChannels = 16) {
+      const shape = tensor4d.shape; // [1, h, w, c]
+      const h = shape[1], w = shape[2], c = shape[3];
+      const count = Math.min(maxChannels, c);
+      const canvases = ensureCanvases(containerId, w, h, count);
+      for (let ch = 0; ch < count; ch++) {
+        await tf.nextFrame();
+        const arr = tf.tidy(() => {
+          const slice = tensor4d.slice([0, 0, 0, ch], [1, h, w, 1]).squeeze(); // [h,w]
+          const minV = slice.min();
+          const maxV = slice.max();
+          const norm = slice.sub(minV).div(maxV.sub(minV).add(1e-6));
+          const data = norm.dataSync();
+          minV.dispose(); maxV.dispose();
+          return data;
+        });
+        const canvas = canvases[ch];
+        if (!canvas) continue;
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(w, h);
+        for (let i = 0; i < arr.length; i++) {
+          const v = Math.max(0, Math.min(1, arr[i])) * 255;
+          img.data[i * 4 + 0] = v;
+          img.data[i * 4 + 1] = v;
+          img.data[i * 4 + 2] = v;
+          img.data[i * 4 + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+    }
+
+    function buildCnnViz() {
+      if (cnnVizBuilt) return;
+      const outEl = document.getElementById('viz-out-cnn');
+      vizOutNodesCnn = createNodes(outEl, 10);
+      cnnVizBuilt = true;
+    }
+
+    function updateVizMode() {
+      const mlpEl = document.getElementById('viz-mlp');
+      const cnnEl = document.getElementById('viz-cnn');
+      if (currentModelType === 'cnn') {
+        mlpEl.style.display = 'none';
+        cnnEl.style.display = '';
+        buildCnnViz();
+        // Use CNN probability nodes for updates
+        vizOutNodes = vizOutNodesCnn;
+        // Canvases will be created/updated during prediction via renderFeatureMaps
+        const c1 = document.getElementById('viz-c1'); if (c1) c1.innerHTML = '';
+        const c2 = document.getElementById('viz-c2'); if (c2) c2.innerHTML = '';
+        featureCanvasCache['viz-c1'] = [];
+        featureCanvasCache['viz-c2'] = [];
+      } else {
+        cnnEl.style.display = 'none';
+        mlpEl.style.display = '';
+        // Use MLP probability nodes
+        if (!vizBuilt) buildViz();
+        vizOutNodes = vizOutNodesMlp;
+      }
+    }
+
+    // Model selector
+    const btnCnn = document.getElementById('btn-cnn');
+    const btnMlp = document.getElementById('btn-mlp');
+    function setActive(kind) {
+      const isCnn = kind === 'cnn';
+      btnCnn.classList.toggle('active', isCnn);
+      btnMlp.classList.toggle('active', !isCnn);
+      btnCnn.setAttribute('aria-selected', String(isCnn));
+      btnMlp.setAttribute('aria-selected', String(!isCnn));
+    }
+    btnCnn?.addEventListener('click', async () => {
+      setActive('cnn');
+      await loadModel('cnn');
+      updateVizMode();
+      schedulePredict();
+    });
+    btnMlp?.addEventListener('click', async () => {
+      setActive('mlp');
+      await loadModel('mlp');
+      updateVizMode();
+      schedulePredict();
+    });
+
+    // Kick off default model load (CNN)
+    loadModel('cnn').then(() => { buildViz(); updateVizMode(); schedulePredict(); });
   })();
 </script>
