@@ -27,17 +27,21 @@ title: Home
   </ul>
 </header>
 
-<section class="section">
-  <h2>Playground</h2>
-  <p>
-    Try the 28×28 drawing grid: <a href="{{ '/mnist.html' | relative_url }}">MNIST Grid</a>
-  </p>
-  
-</section>
-
 <section class="ribbon" aria-label="Quick sections carousel">
   <div class="ribbon-viewport" id="ribbon-viewport">
     <div class="ribbon-track" id="ribbon-track">
+      <article class="ribbon-card">
+        <div class="grid two-col" style="align-items:center; gap:16px;">
+          <img src="{{ '/assets/mnist.gif' | relative_url }}" alt="MNIST drawing grid demo" style="max-width:160px; width:100%; border-radius:8px; box-shadow: var(--shadow);" />
+          <div>
+            <h3>Playground: MNIST Grid</h3>
+            <p>
+              Try the 28×28 drawing grid to classify digits.
+              <a href="{{ '/mnist.html' | relative_url }}">Open playground</a>
+            </p>
+          </div>
+        </div>
+      </article>
       <article class="ribbon-card">
         <h3>Project Highlights</h3>
         <p>Placeholder summary of key projects and outcomes.</p>
