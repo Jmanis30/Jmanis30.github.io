@@ -38,7 +38,7 @@
     const restartTimer = () => {
       if (reduceMotion) return; // respect user preference
       clearInterval(timer);
-      timer = setInterval(() => goTo(index + 1), 5000);
+      timer = setInterval(() => goTo(index + 1), 10000);
     };
 
     on(prev, 'click', () => { goTo(index - 1); restartTimer(); });

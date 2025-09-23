@@ -12,19 +12,26 @@ title: Home
 </head>
 
 <header class="hero">
-  <h1>James Maniscalco</h1>
-  <p class="tagline">
-    <strong>Data Scientist &amp; Analytics Engineer</strong><br>
-    Passionate about turning complex data into actionable insights and AI‑powered solutions.
-  </p>
+  <div class="grid two-col" style="align-items:center; gap:16px;">
+    <div>
+      <h1>James Maniscalco</h1>
+      <p class="tagline">
+        <strong>Data Scientist &amp; ML Engineer</strong><br>
+        Passionate about turning complex data into actionable insights and AI‑powered solutions.
+      </p>
 
-  <ul class="contact">
-    <li><a href="mailto:jmaniscalco30@gmail.com">jmaniscalco30@gmail.com</a></li>
-    <li><a href="tel:+12034009646">+1 (203) 400‑9646</a></li>
-    <li><span>New York, NY</span></li>
-    <li><a href="https://www.linkedin.com/in/jmaniscalco" target="_blank" rel="noopener">LinkedIn</a></li>
-    <li><a href="https://github.com/jmaniscalco" target="_blank" rel="noopener">GitHub</a></li>
-  </ul>
+      <ul class="contact">
+        <li><a href="mailto:jmaniscalco30@gmail.com">jmaniscalco30@gmail.com</a></li>
+        <li><a href="tel:+12034009646">+1 (203) 400‑9646</a></li>
+        <li><span>New York, NY</span></li>
+        <li><a href="https://www.linkedin.com/in/james-maniscalco-ba9b06182/" target="_blank" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://github.com/Jmanis30" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <img src="{{ '/assets/headshot.jpg' | relative_url }}" alt="Headshot of James Maniscalco" style="width:140px; height:140px; object-fit:cover; border-radius:50%; box-shadow: var(--shadow); border: 1px solid var(--border);" />
+    </div>
+  </div>
 </header>
 
 <section class="ribbon" aria-label="Quick sections carousel">
@@ -43,24 +50,16 @@ title: Home
         </div>
       </article>
       <article class="ribbon-card">
-        <h3>Project Highlights</h3>
-        <p>Placeholder summary of key projects and outcomes.</p>
-      </article>
-      <article class="ribbon-card">
-        <h3>Tech Stack</h3>
-        <p>Placeholder overview of tools, frameworks, and platforms.</p>
-      </article>
-      <article class="ribbon-card">
-        <h3>Case Study</h3>
-        <p>Placeholder short blurb linking to a deeper write‑up.</p>
-      </article>
-      <article class="ribbon-card">
-        <h3>Speaking & Writing</h3>
-        <p>Placeholder for talks, posts, and publications.</p>
-      </article>
-      <article class="ribbon-card">
-        <h3>Contact & Availability</h3>
-        <p>Placeholder for how to reach me and current status.</p>
+        <div class="grid two-col" style="align-items:center; gap:16px;">
+          <img src="{{ '/assets/customgpt.gif' | relative_url }}" alt="CustomGPT demo" style="max-width:160px; width:100%; border-radius:8px; box-shadow: var(--shadow);" />
+          <div>
+            <h3>Project: CustomGPT</h3>
+            <p>
+              Created custom GPT model for text generation.
+              <a href="{{ '/customgpt.html' | relative_url }}">Open Page</a>
+            </p>
+          </div>
+        </div>
       </article>
     </div>
   </div>
@@ -71,8 +70,8 @@ title: Home
 <section class="section">
   <h2>Professional Summary</h2>
   <ul>
-    <li>Experienced Data Scientist with a Master’s in Data Science and a strong foundation in ML, RAG, and agentic architectures.</li>
-    <li>Skilled in designing end‑to‑end data pipelines, building predictive models, and delivering client‑facing GenAI proofs‑of‑concept.</li>
+    <li>Experienced Data Scientist with a Master’s in Data Science and a strong foundation in ML, GenAI, Data Analytics, and agentic architectures.</li>
+    <li>Skilled in designing agentic AI solutions, building end‑to‑end data pipelines, creating predictive models, and delivering client‑facing GenAI proofs‑of‑concept.</li>
     <li>Proven ability to collaborate with cross‑functional teams, translate business requirements into technical solutions, and communicate insights effectively.</li>
   </ul>
 </section>
@@ -108,7 +107,10 @@ title: Home
     <h3>Data Scientist, IBM</h3>
     <p><em>Jun 2023 – Present</em></p>
     <ul>
+      <li>Created production conversation AI chat bots leveraging a RAG architecture to help drive containment rate over 80%</li>
+      <li>Worked with operational teams at a large bank to incorporate GenAI into their procedure, bringing their sampling coverage to 100% while reducing manual effort by 50% </li>
       <li>Built scalable data pipelines, KPIs, and daily reporting dashboards to enable data‑driven decision‑making (Python, SQL, Excel, VBA, Dataiku).</li>
+      <li>Developed AI reference architectures to provide large financial institutions with a roadmap of components needed to develop agentic AI solutions</li>
       <li>Developed client‑facing POCs leveraging GenAI, agentic frameworks, and Retrieval‑Augmented Generation architectures (Flask, LangChain, Chroma, Streamlit).</li>
     </ul>
   </article>
@@ -149,11 +151,19 @@ title: Home
 
 <section class="section">
   <h2>Extracurricular &amp; Athletics</h2>
-  <p>
-    <strong>UConn Men’s Track &amp; Field / Cross Country</strong>
-  </p>
-  <ul>
-    <li>School record holder, Indoor 5000m</li>
-    <li>2020 Outdoor Track &amp; Field Big East Champion</li>
-  </ul>
+  <div class="grid two-col" style="align-items:start; gap:16px;">
+    <div>
+      <p>
+        <strong>UConn Men’s Track &amp; Field / Cross Country</strong>
+      </p>
+      <ul>
+        <li>School record holder, Indoor 5000m</li>
+        <li>2020 Outdoor Track &amp; Field Big East Champion</li>
+        <li>All Region XC Honors</li>
+      </ul>
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <img src="{{ '/assets/running.jpg' | relative_url }}" alt="Extracurriculars photo placeholder" style="max-width:220px; width:100%; border-radius:8px; box-shadow: var(--shadow); border: 1px solid var(--border);" />
+    </div>
+  </div>
 </section>

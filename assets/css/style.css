@@ -109,7 +109,8 @@ thead th {
 .ribbon { position: relative; margin: 10px 0 18px; }
 .ribbon-viewport { overflow: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); }
 .ribbon-track { display: flex; gap: 0; transform: translateZ(0); }
-.ribbon-card { flex: 0 0 auto; min-width: 100%; scroll-snap-align: start; padding: 20px 18px; min-height: 140px; display: flex; flex-direction: column; justify-content: center; }
+.ribbon-card { flex: 0 0 100%; min-width: 100%; scroll-snap-align: start; padding: 20px 56px; min-height: 140px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; }
+.ribbon-card p { overflow-wrap: anywhere; }
 .ribbon-card h3 { margin: 0 0 6px; }
 .ribbon-card p { margin: 0; color: var(--muted); }
 
@@ -131,4 +132,5 @@ thead th {
 
 @media (max-width: 520px) {
   th, td { padding: 8px 10px; }
+  .ribbon-card { padding-left: 44px; padding-right: 44px; }
 }
